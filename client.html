@@ -1,0 +1,80 @@
+<html>
+<head>
+  <title>Ant-o-Nym or The Ants of Nym</title>
+  
+  <script src='http://ajax.googleapis.com/ajax/libs/jquery/1.3/jquery.min.js'></script>
+  <script>
+    var inputchange;
+
+    $(document).ready(function(){
+    
+    var ws;
+    
+    if ("WebSocket" in window) {
+    debug("Hoo-ray, hoo-ray, you have web sockets Trying to connect...");
+    ws = new WebSocket("ws://72.128.76.44:8042/");
+    
+    ws.onopen = function() {
+    // Web Socket is connected. You can send data by send() method.
+    debug("connected...");
+    ws.send("hello from the browser");
+    ws.send("more from browser");
+    };
+    
+    ws.onmessage = function (evt)
+    {
+    var data = evt.data;
+    var i = data.indexOf("!");
+    var tag = data.slice(0,i);
+    var val = data.slice(i+1);
+    $("#" + tag).html(val);
+    };
+    
+    ws.onclose = function()
+    {
+    debug(" socket closed");
+    };
+    } else {
+    alert("You have no web sockets");
+    };
+    
+    function debug(str) {
+    $("#debug").append("<p>" + str + "</p>");
+    };
+    
+    inputchange = function() {
+    var val=$("#in1").val(); // read the entry
+    $("#in1").val("");       // and clear it
+    ws.send(val);           // tell erlang
+    return true;            // must do this
+    };
+    
+    });
+    
+  </script>
+</head>
+<body>
+  <h1>ANTONYM (Antonyms Near Territory Of eNemies, You Make!)</h1>
+  
+  <div id="debug"></div>
+  
+  <fieldset>
+    <legend>Round</legend>
+    <div id="round"></div>
+  </fieldset>
+  
+  <fieldset>
+    <legend>Your Territory:</legend>
+    <div id="out">You don't have WebSockets :-(</div>
+  </fieldset>
+  
+  <fieldset>
+    <legend>Word Input:</legend>
+    <input id="in1" size="42" onchange="inputchange()">
+  </fieldset>
+  
+  Your colonies expand automatically every 30 seconds. They can expand only to words that are a synonym, hypernym, or hyponym of a word that is already in your territory; you can add words in the same way cheaply, and, for a greater (currently non-existent) cost, new territories with words not directly connected to your own (if they're used by another player it will fail, and they'll get a point (in theory)).  If you expand to include a word which is an antonym of a word in someone else's territory, you do battle (which is completely untested right now).
+<br><br>
+Data/Programs/Libraries used include: Erlang, WordNet3.0 (wordnet_mysql), MariaDB 5.2 (and OQGraph), and a simple WebSocket server written by Joe Armstrong.
+</body>
+</html>
