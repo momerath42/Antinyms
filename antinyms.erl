@@ -1,4 +1,4 @@
--module(antonym).
+-module(antinyms).
 
 -compile(export_all).
 

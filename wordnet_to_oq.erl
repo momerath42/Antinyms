@@ -2,7 +2,7 @@
 
 -compile(export_all).
 
--define(DB,"antonym").
+-define(DB,"antinyms").
 -define(SYNONYM,40).
 -define(HYPERNYM,1).
 -define(HYPONYM,2).
