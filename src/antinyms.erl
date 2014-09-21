@@ -4,6 +4,8 @@
 
 -define(UNIT_TIME,30000).
 
+-import(util,[randFromList/1,format/2]).
+
 %% TODO: replace the relational territory table with per-territory
 %% oqgraphs which are prefilled fully-expanded with 1? weights. that
 %% way, I can change occupied territory's weights to 0 and do a
@@ -13,18 +15,34 @@
 start() ->
     wordnet:init(),
     wordnet:fetch("delete from players",[]),
-    Listener = startWSListener(),
-    io:format("starting listener:~p~n",[Listener]).
+    application:start(crypto),
+    application:start(cowlib),
+    application:start(ranch),
+    application:start(cowboy),
+    application:start(compiler),
+    application:start(goldrush),
+    application:start(syntax_tools),
+    lager:start(),
+    lager:set_loglevel(lager_file_backend, "debug.log", debug),
+    application:start(antinyms),
+    performance:start(),
+    ok.
+%    wordnet_to_custom_thing:initWithSerialHubSetup().
+%    wordnet_to_custom_thing:initNoPing().
+%    wordnet_to_custom_thing:initTest().
+%    wordnet_to_custom_thing:initAll().
+%    Listener = startWSListener(),
+%    io:format("starting listener:~p~n",[Listener]).
 
-startWSListener() ->
-    F = fun interact/2,
-    spawn(fun() -> websocket_server:start(F,0) end).
+%startWSListener() ->
+%    F = fun interact/2,
+%    spawn(fun() -> websocket_server:start(F,0) end).
 
 interact(Browser, State) ->
     Player = playerIdByBrowser(Browser),
     receive
 	{browser, Browser, Str} ->
-	    case wordId(Str) of
+	    case wordnet:wordId(Str) of
 		not_found ->
 		    Browser ! {send, "out ! " ++ "word not found!"};
 		Word ->
@@ -32,7 +50,7 @@ interact(Browser, State) ->
 		    updatePlayersTerritory(Player,Browser)
 	    end,
 	    interact(Browser, State)
-    after ?UNIT_TIME ->   
+    after ?UNIT_TIME ->
 	    Browser ! {send, "round ! " ++ integer_to_list(State)},
 	    growColonies(Player),
 	    updatePlayersTerritory(Player,Browser),
@@ -54,37 +72,55 @@ playerIdByBrowser(PID) ->
 browserByPlayerId(Id) ->
     erlang:get({browser,Id}).
 
-sendToPlayer(Player,Msg) ->    
+sendToPlayer(Player,Msg) ->
     Browser = browserByPlayerId(Player),
     Browser ! Msg.
-    
+
 updatePlayersTerritory(Player,Browser) ->
-    Terr = [ binary_to_list(lemma(W)) || {W,_} <- territory(Player) ],
-    Browser ! {send, lists:flatten(io_lib:format("out ! ~p",[Terr]))}.
+    Terr = [ binary_to_list(wordnet:lemma(W)) || {W,_} <- territory(Player) ],
+    Browser ! {send, format("out ! ~p",[Terr])}.
 
 site_init() ->
+    wordnet_to_custom_thing:initWithSerialHubSetup().
+
+site_init_old() ->
+    %% used by rel_ version
     wordnet:fetch("CREATE TABLE territory ("
 		  "  id INT UNSIGNED NOT NULL, "
 		  "  player INT UNSIGNED NOT NULL, "
 		  "  node BIGINT UNSIGNED NOT NULL, "
 		  "  PRIMARY KEY (id,player,node) "
 		  " ) ENGINE=MYISAM;",[]),
+    %% used by graph version
+    wordnet:fetch("CREATE TABLE colonies ("
+		  "  id INT UNSIGNED NOT NULL, "
+		  "  player INT UNSIGNED NOT NULL, "
+		  "  PRIMARY KEY (id,player) "
+		  " ) ENGINE=MYISAM;",[]),
     wordnet:fetch("CREATE TABLE players ("
 		  "  player INT UNSIGNED NOT NULL, "
 		  "  pid VARCHAR(255), "
 		  "  PRIMARY KEY (pid) "
-		  " ) ENGINE=MYISAM;",[]).
-
-wordId(WordStr) ->
-    case wordnet:squery("select wordid from words where lemma = '~s'",[WordStr]) of
-	[[Id]] -> Id;
-	_Other ->
-	    not_found
+		  " ) ENGINE=MYISAM;",[]),
+    case catch wordnet:squery("select count(*) from synonyms where latch = 0") of
+	{'EXIT',Reason} ->
+	    site_init_oqrestarted();
+	[[0]] ->
+	    site_init_oqrestarted();
+	_ ->
+	    ok
     end.
 
-lemma(WordId) ->
-    [[R]] = wordnet:squery("select lemma from words where wordid = ~p",[WordId]),
-    R.
+site_init_oqrestarted() ->
+    case wordnet:fetch("select count(*) from words") of
+	{error,_} ->
+	    %% todo: wordnet_mysql import
+	    todo;
+	_ -> ok
+    end,
+    wordnet_to_oq:init().
+
+
 
 occupy(Player,Word) ->
     io:format("occupy(~p,~p)~n",[Player,Word]),
@@ -119,12 +155,6 @@ occupy(Player,Word) ->
 	    end
     end.
 
-randFromList(L) ->
-    randFromList(L,erlang:length(L)).
-
-randFromList(L,Length) ->
-    lists:nth(random:uniform(Length),L).
-
 colonies(Player) ->
     wordnet:squery("select id from territory where player = ~p",[Player]).
 
@@ -132,7 +162,10 @@ growColonies(Player) ->
     io:format("growColonies(~p)~n",[Player]),
     [ growColony(Player,TId) || [TId] <- colonies(Player) ].
 
-growColony(Player,Territory) ->
+growColony(Player,Colony) ->
+    ok.
+
+rel_growColony(Player,Territory) ->
     case wordnet:squery("select node from territory where player = ~p and id = ~p",[Player,Territory]) of
 	[] -> dn;
 	Colonies ->
@@ -160,11 +193,11 @@ hyponyms(Word) ->
 antonyms(Word) ->
     oqgraph:findDirectlyConnected("antonyms",Word).
 
-	    
+
 occupants(Word) ->
     [ {P,T} || [P,T] <- wordnet:squery("select player,id from territory where node = ~p",[Word]) ].
 
-rejectDuplicate(Player,Word) ->				
+rejectDuplicate(Player,Word) ->
     todo,
     io:format("rejecting ~p from ~p~n",[Word,Player]).
 
@@ -172,7 +205,7 @@ areDirectlyConnected(W1,W2) ->
     io:format("areDirectlyConnected(~p,~p)~n",[W1,W2]),
     case oqgraph:areDirectlyConnected("synonyms",W1,W2) of
 	true -> {true,synonym};
-	false ->	
+	false ->
 	    case oqgraph:areDirectlyConnected("hypernyms",W1,W2) of
 		true -> {true,hyperonym};
 		false ->
@@ -186,10 +219,10 @@ areDirectlyConnected(W1,W2) ->
 territory(Player) ->
     [ {W,T} || [W,T] <- wordnet:squery("select node,id from territory where player = ~p",[Player]) ].
 
-%isNymOfTerritory(Player,Word) ->
-
-    
 isNymOfTerritory(Player,Word) ->
+    todo.
+
+rel_isNymOfTerritory(Player,Word) ->
     io:format("isNymOfTerritory(~p,~p)~n",[Player,Word]),
     TerritoryTestNodes = territory(Player),
     lists:foldl(fun({W,T},false) ->
@@ -200,7 +233,7 @@ isNymOfTerritory(Player,Word) ->
 		   (_,Acc) ->
 			Acc
 		end,false,TerritoryTestNodes).
-			      
+
 playersConnectedByAntonym(Word) ->
     lists:foldl(fun(Ant,Acc) ->
 			case occupants(Ant) of
@@ -208,7 +241,7 @@ playersConnectedByAntonym(Word) ->
 			    [{Enemy,Territory}] -> [{Enemy,Territory,Ant} | Acc]
 			end
 		end,[],antonyms(Word)).
-	
+
 extendTerritory(Player,Word,TerritoryId,_Relationship,Nym,Occupants) ->
     wordnet:fetch("insert into territory (player,id,node) values (~p,~p,~p)",[Player,TerritoryId,Word]),
     wordnet:fetch("insert into territory~p (origid,destid) values (~p,~p),(~p,~p)",[Player,Word,Nym,Nym,Word]),
@@ -248,6 +281,9 @@ nextPlayerId() ->
     io:format("nextPlayerId()~n"),
     nextId(player,fun() -> 1 end).
 
+nextIslandId() ->
+    nextId(player,fun() -> 1 end).
+
 nextId(IdName,InitFun) ->
     Id = case erlang:get(IdName) of
 	     undefined ->
@@ -264,8 +300,42 @@ nextId(IdName,InitFun) ->
 	 end,
     erlang:put(IdName,Id),
     Id.
-			     
+
+findNymIslands() ->
+    wordnet:fetch("drop table islands_of_nym"),
+    wordnet:fetch("create table islands_of_nym (word int unsigned not null,island int unsigned not null, key (word) ) engine myisam"),
+    F = fun(W) ->
+		%% slow: (0.95 sec) - it's the group-by, but I dont see a simple way around it, and this is an offline calc anyway
+		IslandId = case oqgraph:squery("select island from nyms,islands_of_nym where latch = 2 "
+					       "and nyms.origid = ~p and islands_of_nym.word = nyms.linkid "
+					       "group by island order by island asc limit 10",[W]) of
+			       [] ->
+				   nextIslandId();
+			       [[Id]] ->
+				   Id
+			   end,
+		wordnet:fetch("insert into islands_of_nym values (~p,~p)",[W,IslandId])
+	end,
+    [ F(W) || [W] <- oqgraph:squery("select linkid from nyms where latch = 0") ].
+
+
+%% used by graph version:
+preFillColony(Id,Word) ->
+    Reachable = oqgraph:findReachable("nyms",Word),
+%    oqgraph:squery("insert into colony_~p (origid,destid,weight) select ("
+    Paths = [ [ N || [N] <- oqgraph:shortestPath("nyms",Word,Dest) ] || [Dest] <- Reachable ],
+    PL = length(Paths),
+    PathOrigins = lists:sublist(Paths,1,PL-1),
+    PathDests = lists:sublist(Paths,2,PL),
+    [ oqgraph:connect(format("colony_~p",[Id]),W1,W2) || {W1,W2} <- lists:zip(PathOrigins,PathDests) ].
+
 beginTerritory(PlayerId,Word) ->
+    NewTerritoryId = nextTerritoryId(),
+    wordnet:fetch("insert into colonies (player,id) values (~p,~p)",[PlayerId,NewTerritoryId]),
+    oqgraph:create(format("colony_~p",[NewTerritoryId])),
+    preFillColony(NewTerritoryId,Word).
+
+rel_beginTerritory(PlayerId,Word) ->
     NewTerritoryId = nextTerritoryId(),
     wordnet:fetch("insert into territory (player,id,node) values (~p,~p,~p)",[PlayerId,NewTerritoryId,Word]),
     NewTerritoryId.
@@ -276,7 +346,7 @@ rejectColonyStartingPoint(_,_,_) ->
 informOfNewOccupant(_,_,_) ->
     todo.
 
-    
+
 %% between commits attic
 
 
@@ -298,4 +368,3 @@ persistent_browserByPlayerId(Player) ->
 	[[PIDStr]] ->
 	    list_to_pid(binary_to_list(PIDStr))
     end.
-

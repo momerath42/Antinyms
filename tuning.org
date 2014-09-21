@@ -1,0 +1,10 @@
+* benchmarks
+** Sat Sep 20 22:14:50 2014
+*** 80 hub-threshold - 4 max-hops
+    * ~20 min?
+    * ~800M?
+    * 579M serialized
+*** 80 hub-threshold - 7 max-hops
+    * killed after 11 hours (too much logging?)
+*** 100 hub-threshold - 6 max-hops
+    *

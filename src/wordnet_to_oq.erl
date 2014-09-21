@@ -2,7 +2,6 @@
 
 -compile(export_all).
 
--define(DB,"antinyms").
 -define(SYNONYM,40).
 -define(HYPERNYM,1).
 -define(HYPONYM,2).
@@ -19,8 +18,8 @@ wordsLinkedBy(Word,LinkId) ->
     [ wordIdOfSynSet(SynId) || [SynId] <- wordnet:squery("select synset2id from semlinks, wordsXsensesXsynsets where linkid = ~p and synsetid = synset1id and wordid = ~p",[LinkId, Word]) ].
 
 createTable(Table) ->
-    case catch oqgraph:create(?DB,Table) of
-	{'EXIT',_} ->
+    case catch oqgraph:create(Table) of
+	{'EXIT',_} -> %% bad style
 	    presumably_exists;
 	_ -> ok
     end.
@@ -29,6 +28,7 @@ createTables() ->
     createTable("synonyms"),
     createTable("hypernyms"),
     createTable("hyponyms"),
+    createTable("nyms"), %% syn+hyper+hypo
     createTable("antonyms").
 
 init() ->
@@ -37,9 +37,12 @@ init() ->
     [ connectNyms(Word) || Word <- Words ].
 
 connectNyms(Word) ->
-    [ connect("synonyms",Word,W) || W <- wordsLinkedBy(Word,?SYNONYM) ],
-    [ connect("hypernyms",Word,W) || W <- wordsLinkedBy(Word,?HYPERNYM) ],
-    [ connect("hyponyms",Word,W) || W <- wordsLinkedBy(Word,?HYPONYM) ],
+    Syn = [ connect("synonyms",Word,W) || W <- wordsLinkedBy(Word,?SYNONYM) ],
+    Hyper = [ connect("hypernyms",Word,W) || W <- wordsLinkedBy(Word,?HYPERNYM) ],
+    Hypo = [ connect("hyponyms",Word,W) || W <- wordsLinkedBy(Word,?HYPONYM) ],
+    [ connect("nyms",W1,W2) || {W1,W2} <- Syn++Hyper++Hypo ],
+    %% for my island finding, I need anything that can be reached in one direction to be reachable in the other (no knots)
+    [ connect("nyms",W2,W1) || {W1,W2} <- Syn++Hyper++Hypo ],
     Antonyms = [ W || [W] <- wordnet:squery("select word2id from lexlinks where word1id = ~p and linkid = ~p",[Word,?ANTONYM]) ],
     [ connect("antonyms",Word,W) || W <- Antonyms ].
 

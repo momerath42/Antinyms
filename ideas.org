@@ -1,0 +1,52 @@
+* Roguelike:
+** Theme/Story
+*** Your eccentric uncle has died and left you his cave home, and all within it.
+    * You find a tattered magic book there which you have to throw at a bare wall of the cave, whereupon a passage opens to a random (from a pool of words with desired traits tbd) node in the graph.  If you pass back through the passage to the cave, the passage will vanish and the book will be there on the ground, a bit more tattered.
+** Core Gameplay
+*** Lots of hand-picked words (mostly nouns I'd think) become weapons, armor, or magic items, and can be found in corresponding rooms in the wordnet-dungeon
+*** Other hand-picked words become monsters (animals, verbs like 'shamble' or adjectives like 'lurking') with sensible spawn-points
+*** Connections are doors, which are non-existent, open, closed+unlocked, closed+locked - keys corresponding to the types of relationships can be found/earned
+*** Combat interactions with NPCs, typical of roguelikes, would be replaced, to the extent that the greater time-investment allows (% player-content), with freeform conversations (riddles are an obvious trope)
+*** One or more difficult-to-reach objects would allow for 'ascension'; possible prerequisites could include a total explored/conquered terrirory, or actions-of/interactions-with other players in the same world
+** Potential Gameplay
+*** MUSH-'ractive
+    * people could be, perhaps by attaining some in-game goal, enabled to create new objects, npcs, puzzles and so forth, in the MUSH tradition.
+    * dissemination of player-content could depend on some sort of a/b testing and/or creator-reputation
+    * just-in-time fallback to human control for npcs and puzzles (including understudy support)
+*** MicroMiniMass
+    * player actions could be recorded or relayed and used to inform the actions of player-like npcs
+*** VR
+    * would need to tweak the story I have in mind, but I like the idea (for some project) of interacting with an old-school terminal in VR, which gradually shows itself to have magical properties (2d artificial life, 3d landscapes and objects set within the display, things escaping the display, things happening to the virtual hands/keyboard, 'mental' images surrounding the display, or other things in the environment changing, appearing or wandering in based on terminal-interactions.
+    * capture of the player's hands on the keyboard, and a convincing reproduction in the sim would be key
+** Interface
+*** Original rougelike style could work, as could a pretty graphical one, with map and journal
+*** An interactive-fiction/MUD-like interface appeals at the moment, though I don't think I'd want to force people to keep their own maps
+** Notes
+*** initial door states and key availability would be determined at dungeon creation to ensure eventual mobility
+* Strategy:
+** Theme/Story
+*** Ant colonies
+** Core Gameplay
+*** Start at nodes chosen for their level of connectedness and distance from certain hubs that are likely to become occupied
+    * determined through experimental gameplay
+*** Some mechanism, potentially as simple as time (think peons mining), dictates when you have the resources to attempt expansion.
+*** Mechanism(s) for expansion into Hyper/Hyponyms
+    * requiring some kind of knowledge of english; think placing buildings - incorrect placement/guess costs resources
+*** Mechanism for expansion into Synonyms - same as 3?
+*** Antonym encounters: when 2 or more players occupy words that are antonyms of each other, a 'battle' occurs
+    * could be as simple as who has more nearby resources (% dice roll) - think Risk
+** Notes
+*** RTS/TBS hybrid approach:
+    * exploration is real-time, but there are long periods of waiting (eg. crops in farmville)
+    * combat is simultaneos turn based and initiated by an alert on your phone - if you don't take an action, one is taken for you or maybe you just lose
+*** Weight-Classes:
+    detect behavior that's strongly indicitive of either use of wordnet to 'cheat' through strategic choices that are just 'too good' (hard to define) or a scripted interface (relatively easy to detect clumsy stuff and making it unclumsy is an iterative process), and place the account (tied to one-time-payment) in the highest 'weightclass' apart from the cheaters/ai class, start everyone in the first class and graduate them based on wins (and how convincing they are)- maybe chess-ranking-esque opt-in cross-weightclass games
+* Racing/Navigation Game:
+** Core Gameplay
+*** Placed at start node and given target word
+*** A DAG of roads (or tubes) stretches out ahead
+    * turns and overpasses generated to be not frustrating to drive; landscape could change depending on where you're coming from
+*** Street signs or other indicators tell you what the relationships are
+    * buildings denote the words (or should it be streets that are words, with relationships being at most represented in the direction of divergence?)
+** Notes
+*** A distance from goal indicator and path history should be available for beginners
